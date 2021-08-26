@@ -2,10 +2,11 @@ import Flutter
 import UIKit
 import PhoneNumberKit
 
+
 // Ported from https://github.com/emostar/flutter-libphonenumber
 
 
-public class SwiftFlutterLibphonenumberPlugin: NSObject, FlutterPlugin {
+public class SwiftFlutterLibphonenumberPlugin: NSObject, FlutterPlugin, FlutterLibPhoneNumberApi {
     let dispQueue = DispatchQueue(label: "com.bottlepay.flutter_libphonenumber")
     
     
@@ -13,13 +14,12 @@ public class SwiftFlutterLibphonenumberPlugin: NSObject, FlutterPlugin {
         let channel = FlutterMethodChannel(name: "flutter_libphonenumber", binaryMessenger: registrar.messenger())
         let instance = SwiftFlutterLibphonenumberPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
+        FlutterLibPhoneNumberApiSetup(registrar.messenger(), instance)
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch(call.method) {
         case "parse": parse(call, result: result)
-        case "format": format(call, result: result)
-        case "get_all_supported_regions": getAllSupportedRegions(result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -28,45 +28,47 @@ public class SwiftFlutterLibphonenumberPlugin: NSObject, FlutterPlugin {
     private let kit = PhoneNumberKit()
     
     // Get all regions and assemble their phone mask data.
-    private func getAllSupportedRegions(result: @escaping FlutterResult) {
+    public func getAllSupportedRegions(_ completion: @escaping (GetAllSupportedRegionsReponse?, FlutterError?) -> Void) {
         // Runs on a separate thread to prevent locking up the UI in flutter.
         dispQueue.async {
-            var regionsMap: [String: [String: String]] = [:]
+            let result = GetAllSupportedRegionsReponse()
+            result.countries = []
+            
             self.kit.allCountries().forEach { (regionCode) in
-                var itemMap: [String: String] = [:]
+                let countryWithPhoneCode = ApiCountryWithPhoneCode()
                 
                 if let phoneCode = self.kit.countryCode(for: regionCode) {
-                    itemMap["phoneCode"] = String(phoneCode)
+                    countryWithPhoneCode.phoneCode = String(phoneCode)
                     
                     if let formattedExampleNumberMobileNational = self.kit.getFormattedExampleNumber(forCountry: regionCode, ofType: .mobile, withFormat: .national) {
-                        itemMap["phoneMaskMobileNational"] = self.maskNumber(phoneNumber: formattedExampleNumberMobileNational, phoneCode: phoneCode)
-                        itemMap["exampleNumberMobileNational"] = formattedExampleNumberMobileNational
+                        countryWithPhoneCode.phoneMaskMobileNational = self.maskNumber(phoneNumber: formattedExampleNumberMobileNational, phoneCode: phoneCode)
+                        countryWithPhoneCode.exampleNumberMobileNational = formattedExampleNumberMobileNational
                     }
                     
                     if let formattedExampleNumberMobileInternational = self.kit.getFormattedExampleNumber(forCountry: regionCode, ofType: .mobile, withFormat: .international) {
-                        itemMap["phoneMaskMobileInternational"] = self.maskNumber(phoneNumber: formattedExampleNumberMobileInternational, phoneCode: phoneCode)
-                        itemMap["exampleNumberMobileInternational"] = formattedExampleNumberMobileInternational
+                        countryWithPhoneCode.phoneMaskMobileInternational = self.maskNumber(phoneNumber: formattedExampleNumberMobileInternational, phoneCode: phoneCode)
+                        countryWithPhoneCode.exampleNumberMobileInternational = formattedExampleNumberMobileInternational
                     }
                     
                     if let formattedExampleNumberFixedLineNational = self.kit.getFormattedExampleNumber(forCountry: regionCode, ofType: .fixedLine, withFormat: .national) {
-                        itemMap["phoneMaskFixedLineNational"] = self.maskNumber(phoneNumber: formattedExampleNumberFixedLineNational, phoneCode: phoneCode)
-                        itemMap["exampleNumberFixedLineNational"] = formattedExampleNumberFixedLineNational
+                        countryWithPhoneCode.phoneMaskFixedLineNational = self.maskNumber(phoneNumber: formattedExampleNumberFixedLineNational, phoneCode: phoneCode)
+                        countryWithPhoneCode.exampleNumberFixedLineNational = formattedExampleNumberFixedLineNational
                     }
                     
                     if let formattedExampleNumberFixedLineInternational = self.kit.getFormattedExampleNumber(forCountry: regionCode, ofType: .fixedLine, withFormat: .international) {
-                        itemMap["phoneMaskFixedLineInternational"] = self.maskNumber(phoneNumber: formattedExampleNumberFixedLineInternational, phoneCode: phoneCode)
-                        itemMap["exampleNumberFixedLineInternational"] = formattedExampleNumberFixedLineInternational
+                        countryWithPhoneCode.phoneMaskFixedLineInternational = self.maskNumber(phoneNumber: formattedExampleNumberFixedLineInternational, phoneCode: phoneCode)
+                        countryWithPhoneCode.exampleNumberFixedLineInternational = formattedExampleNumberFixedLineInternational
                     }
                 }
                 if let countryName = self.countryName(from: regionCode) {
-                    itemMap["countryName"] = countryName
+                    countryWithPhoneCode.countryName = countryName
                 }
                 
-                regionsMap[regionCode] = itemMap
+                result.countries?.append(countryWithPhoneCode)
             }
             
             DispatchQueue.main.async {
-                result(regionsMap)
+                completion(result, nil)
             }
         }
     }
@@ -75,24 +77,14 @@ public class SwiftFlutterLibphonenumberPlugin: NSObject, FlutterPlugin {
         return phoneNumber.replacingOccurrences(of: "[\\d]", with: "0", options: .regularExpression)
     }
     
-    private func format(_ call: FlutterMethodCall, result: FlutterResult) {
-        guard
-            let arguments = call.arguments as? [String : Any],
-            let number = arguments["phone"] as? String,
-            let region = arguments["region"] as? String
-            else {
-                result(FlutterError(code: "InvalidArgument",
-                                    message: "The 'phone' argument is missing.",
-                                    details: nil))
-                return
-        }
+    public func format(_ input: FormatRequest?, completion: @escaping (FormatResponse?, FlutterError?) -> Void) {
+        let number = input!.phone;
+        let region = input!.region;
+        let formatted = PartialFormatter(defaultRegion: region!).formatPartial(number!)
+        let result = FormatResponse()
         
-        let formatted = PartialFormatter(defaultRegion: region).formatPartial(number)
-        let res:[String: String] = [
-            "formatted": formatted
-        ]
-        
-        result(res)
+        result.formatted = formatted
+        completion(result, nil)
     }
     
     private func parse(phone: String, region: String?) -> [String: String]? {
@@ -131,11 +123,11 @@ public class SwiftFlutterLibphonenumberPlugin: NSObject, FlutterPlugin {
         guard
             let arguments = call.arguments as? [String : Any],
             let phone = arguments["phone"] as? String
-            else {
-                result(FlutterError(code: "InvalidArgument",
-                                    message: "The 'string' argument is missing.",
-                                    details: nil))
-                return
+        else {
+            result(FlutterError(code: "InvalidArgument",
+                                message: "The 'string' argument is missing.",
+                                details: nil))
+            return
         }
         
         let region = arguments["region"] as? String
@@ -145,7 +137,7 @@ public class SwiftFlutterLibphonenumberPlugin: NSObject, FlutterPlugin {
         } else {
             result(FlutterError(code: "InvalidNumber",
                                 message:"Failed to parse phone number string '\(phone)'.",
-                details: nil))
+                                details: nil))
         }
     }
     
@@ -153,11 +145,11 @@ public class SwiftFlutterLibphonenumberPlugin: NSObject, FlutterPlugin {
         guard
             let arguments = call.arguments as? [String : Any],
             let strings = arguments["strings"] as? [String]
-            else {
-                result(FlutterError(code: "InvalidArgument",
-                                    message: "The 'strings' argument is missing.",
-                                    details: nil))
-                return
+        else {
+            result(FlutterError(code: "InvalidArgument",
+                                message: "The 'strings' argument is missing.",
+                                details: nil))
+            return
         }
         
         let region = arguments["region"] as? String

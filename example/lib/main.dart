@@ -406,11 +406,10 @@ class _MyAppState extends State<MyApp> {
                                   final res =
                                       await FlutterLibphonenumber().format(
                                     manualFormatController.text,
-                                    currentSelectedCountry.countryCode,
+                                    region: currentSelectedCountry.countryCode,
                                   );
                                   setState(
-                                    () => manualFormatController.text =
-                                        res['formatted'] ?? '',
+                                    () => manualFormatController.text = res,
                                   );
                                 },
                               ),

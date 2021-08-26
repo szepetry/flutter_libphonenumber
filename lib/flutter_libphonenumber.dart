@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_libphonenumber/src/country_data.dart';
 import 'package:flutter_libphonenumber/src/format_phone_result.dart';
+import 'package:flutter_libphonenumber/src/gen/pigeon.dart' as api;
 import 'package:flutter_libphonenumber/src/input_formatter/phone_mask.dart';
 import 'package:flutter_libphonenumber/src/phone_number_format.dart';
 import 'package:flutter_libphonenumber/src/phone_number_type.dart';
@@ -18,6 +19,8 @@ class FlutterLibphonenumber {
   factory FlutterLibphonenumber() => _instance;
   static final FlutterLibphonenumber _instance =
       FlutterLibphonenumber._internal();
+
+  final _api = api.FlutterLibPhoneNumberApi();
 
   /// Method channel
   final _channel = const MethodChannel('flutter_libphonenumber');
@@ -59,48 +62,64 @@ class FlutterLibphonenumber {
     ///   }
     /// }
     /// ```
-    final result = await _channel
-            .invokeMapMethod<String, dynamic>('get_all_supported_regions') ??
-        {};
-
-    final returnMap = <String, CountryWithPhoneCode>{};
-    result.forEach(
-      (k, v) => returnMap[k] = CountryWithPhoneCode(
-        countryName: v['countryName'] ?? '',
-        phoneCode: v['phoneCode'] ?? '',
-        countryCode: k,
-        exampleNumberMobileNational: v['exampleNumberMobileNational'] ?? '',
-        exampleNumberFixedLineNational:
-            v['exampleNumberFixedLineNational'] ?? '',
-        phoneMaskMobileNational: v['phoneMaskMobileNational'] ?? '',
-        phoneMaskFixedLineNational: v['phoneMaskFixedLineNational'] ?? '',
-        exampleNumberMobileInternational:
-            v['exampleNumberMobileInternational'] ?? '',
+    final apiResult = await _api.getAllSupportedRegions();
+    final mapResult = <String, CountryWithPhoneCode>{};
+    for (var country in apiResult.countries!) {
+      mapResult[country!.countryCode!] = CountryWithPhoneCode(
+        countryCode: country.countryCode!,
+        countryName: country.countryName!,
         exampleNumberFixedLineInternational:
-            v['exampleNumberFixedLineInternational'] ?? '',
-        phoneMaskMobileInternational: v['phoneMaskMobileInternational'] ?? '',
+            country.exampleNumberFixedLineInternational!,
+        exampleNumberFixedLineNational: country.exampleNumberFixedLineNational!,
+        exampleNumberMobileInternational:
+            country.exampleNumberMobileInternational!,
+        exampleNumberMobileNational: country.exampleNumberMobileNational!,
+        phoneCode: country.phoneCode!,
         phoneMaskFixedLineInternational:
-            v['phoneMaskFixedLineInternational'] ?? '',
-      ),
-    );
-    return returnMap;
+            country.phoneMaskFixedLineInternational!,
+        phoneMaskFixedLineNational: country.phoneMaskFixedLineNational!,
+        phoneMaskMobileInternational: country.phoneMaskMobileInternational!,
+        phoneMaskMobileNational: country.phoneMaskMobileNational!,
+      );
+    }
+    return mapResult;
   }
 
   /// Formats a phone number using platform libphonenumber. Will return the parsed number.
+  /// Ensures a leading + is added to the phone so it will format correctly.
   ///
   /// Example response:
   /// ```
   /// {
-  ///   formatted: "1 (414) 444-4444",
+  ///   formatted: "+1 (414) 444-4444",
   /// }
   /// ```
-  Future<Map<String, String>> format(String phone, String region) async {
-    return await _channel.invokeMapMethod<String, String>('format', {
-          'phone': phone,
-          'region': region,
-        }) ??
-        <String, String>{};
+  Future<String> format(
+    String phone, {
+    required String region,
+  }) async {
+    var phoneToFormat = phone;
+
+    /// Ensure phone starts with a +
+    if (!phoneToFormat.startsWith('+')) {
+      phoneToFormat = '+$phoneToFormat';
+    }
+
+    final res = await _api.format(
+      api.FormatRequest()
+        ..phone = phoneToFormat
+        ..region = region,
+    );
+
+    return res.formatted!;
   }
+  // Future<Map<String, String>> format(String phone, String region) async {
+  //   return await _channel.invokeMapMethod<String, String>('format', {
+  //         'phone': phone,
+  //         'region': region,
+  //       }) ??
+  //       <String, String>{};
+  // }
 
   /// Parse a single string and return a map in the format below. Throws an error if the
   /// number is not a valid e164 phone number.
