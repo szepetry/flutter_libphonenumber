@@ -19,7 +19,7 @@ class FlutterLibphonenumber {
   // List<CountryWithPhoneCode> get countries => CountryManager().countries;
 
   /// Must call this before anything else so the countries data is populated
-  Future<void> init({Map<String, CountryWithPhoneCode> overrides}) async {
+  Future<void> init({Map<String, CountryWithPhoneCode>? overrides}) async {
     return CountryManager().loadCountries(overrides: overrides);
   }
 
@@ -51,7 +51,7 @@ class FlutterLibphonenumber {
     final result = await _channel
         .invokeMapMethod<String, dynamic>("get_all_supported_regions");
     final returnMap = <String, CountryWithPhoneCode>{};
-    result.forEach((k, v) => returnMap[k] = CountryWithPhoneCode(
+    result!.forEach((k, v) => returnMap[k] = CountryWithPhoneCode(
           countryName: v['countryName'],
           phoneCode: v['phoneCode'],
           countryCode: k,
@@ -77,7 +77,7 @@ class FlutterLibphonenumber {
   ///   formatted: "1 (414) 444-4444",
   /// }
   /// ```
-  Future<Map<String, String>> format(String phone, String region) {
+  Future<Map<String, String>?> format(String phone, String region) {
     return _channel.invokeMapMethod<String, String>("format", {
       "phone": _ensureLeadingPlus(phone),
       "region": region,
@@ -98,7 +98,7 @@ class FlutterLibphonenumber {
   ///   national_number: '030123123123',
   /// }
   /// ```
-  Future<Map<String, dynamic>> parse(String phone, {String region}) {
+  Future<Map<String, dynamic>?> parse(String phone, {String? region}) {
     return _channel.invokeMapMethod<String, dynamic>("parse", {
       "phone": _ensureLeadingPlus(phone),
       "region": region,
@@ -150,13 +150,13 @@ class FlutterLibphonenumber {
       final parsedResult =
           await parse('+${country.phoneCode}${onlyDigits(phoneNumber)}');
       // print('[formatParsePhonenumberAsync] parsedResult: $parsedResult');
-      returnResult.e164 = parsedResult['e164'];
+      returnResult.e164 = parsedResult!['e164'];
 
       /// Return the international number with no country code if requested
       if (phoneNumberFormat == PhoneNumberFormat.international) {
         returnResult.formattedNumber = parsedResult['international']
             .toString()
-            .substring(country.phoneCode.length + 2);
+            .substring(country.phoneCode!.length + 2);
       } else {
         returnResult.formattedNumber = parsedResult['national'];
       }
@@ -169,8 +169,8 @@ class FlutterLibphonenumber {
 }
 
 class FormatPhoneResult {
-  String formattedNumber;
-  String e164;
+  String? formattedNumber;
+  String? e164;
 
   @override
   String toString() {

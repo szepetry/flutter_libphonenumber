@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:collection/collection.dart' show IterableExtension;
 import 'package:devicelocale/devicelocale.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_libphonenumber/flutter_libphonenumber.dart';
@@ -12,14 +14,14 @@ class CountryManager {
   CountryManager._internal();
 
   List<CountryWithPhoneCode> _countries = [];
-  String deviceLocaleCountryCode;
+  String? deviceLocaleCountryCode;
   var _initialized = false;
 
   /// List of all supported countries on the device with phone code metadata
   List<CountryWithPhoneCode> get countries => _countries;
 
   Future<void> loadCountries(
-      {Map<String, CountryWithPhoneCode> overrides}) async {
+      {Map<String, CountryWithPhoneCode>? overrides}) async {
     if (_initialized) {
       return;
     }
@@ -37,7 +39,7 @@ class CountryManager {
       /// Get the device locale
       try {
         final locale = await Devicelocale.currentLocale;
-        deviceLocaleCountryCode = locale.substring(locale.length - 2);
+        deviceLocaleCountryCode = locale!.substring(locale.length - 2);
       } catch (e) {
         // print('Error detecting deviceLocaleCountryCode, setting default GB');
         deviceLocaleCountryCode = 'GB';
@@ -55,17 +57,17 @@ class CountryManager {
 
 class CountryWithPhoneCode {
   CountryWithPhoneCode({
-    @required this.phoneCode,
-    @required this.countryCode,
-    @required this.exampleNumberMobileNational,
-    @required this.exampleNumberFixedLineNational,
-    @required this.phoneMaskMobileNational,
-    @required this.phoneMaskFixedLineNational,
-    @required this.exampleNumberMobileInternational,
-    @required this.exampleNumberFixedLineInternational,
-    @required this.phoneMaskMobileInternational,
-    @required this.phoneMaskFixedLineInternational,
-    @required this.countryName,
+    required this.phoneCode,
+    required this.countryCode,
+    required this.exampleNumberMobileNational,
+    required this.exampleNumberFixedLineNational,
+    required this.phoneMaskMobileNational,
+    required this.phoneMaskFixedLineNational,
+    required this.exampleNumberMobileInternational,
+    required this.exampleNumberFixedLineInternational,
+    required this.phoneMaskMobileInternational,
+    required this.phoneMaskFixedLineInternational,
+    required this.countryName,
   });
 
   /// GB locale, useful for dummy values
@@ -106,77 +108,76 @@ class CountryWithPhoneCode {
   /// ```
   /// 44
   /// ```
-  final String phoneCode;
+  final String? phoneCode;
 
   /// Example mobile number in national format.
   /// ```
   /// 07400 123456
   /// ```
-  final String exampleNumberMobileNational;
+  final String? exampleNumberMobileNational;
 
   /// Example fixed line number in national format.
   /// ```
   /// 0121 234 5678
   /// ```
-  final String exampleNumberFixedLineNational;
+  final String? exampleNumberFixedLineNational;
 
   /// Phone mask for mobile number in national format.
   /// ```
   /// 00000 000000
   /// ```
-  final String phoneMaskMobileNational;
+  final String? phoneMaskMobileNational;
 
   /// Phone mask for fixed line number in national format.
   /// ```
   /// 0000 000 0000
   /// ```
-  final String phoneMaskFixedLineNational;
+  final String? phoneMaskFixedLineNational;
 
   /// Example mobile number in international format.
   /// ```
   /// +44 7400 123456
   /// ```
-  final String exampleNumberMobileInternational;
+  final String? exampleNumberMobileInternational;
 
   /// Example fixed line number in international format.
   /// ```
   /// +44 121 234 5678
   /// ```
-  final String exampleNumberFixedLineInternational;
+  final String? exampleNumberFixedLineInternational;
 
   /// Phone mask for mobile number in international format.
   /// ```
   /// +00 0000 000000
   /// ```
-  final String phoneMaskMobileInternational;
+  final String? phoneMaskMobileInternational;
 
   /// Phone mask for fixed line number in international format.
   /// ```
   /// +00 000 000 0000
   /// ```
-  final String phoneMaskFixedLineInternational;
+  final String? phoneMaskFixedLineInternational;
 
   /// Country name
   /// ```
   /// United Kingdom
   /// ```
-  final String countryName;
+  final String? countryName;
 
   @override
   String toString() =>
       '[CountryWithPhoneCode(countryName: $countryName, regionCode: $countryCode, phoneCode: $phoneCode, exampleNumberMobileNational: $exampleNumberMobileNational, exampleNumberFixedLineNational: $exampleNumberFixedLineNational, phoneMaskMobileNational: $phoneMaskMobileNational, phoneMaskFixedLineNational: $phoneMaskFixedLineNational, exampleNumberMobileInternational: $exampleNumberMobileInternational, exampleNumberFixedLineInternational: $exampleNumberFixedLineInternational, phoneMaskMobileInternational: $phoneMaskMobileInternational, phoneMaskFixedLineInternational: $phoneMaskFixedLineInternational)]';
 
-  static CountryWithPhoneCode getCountryDataByPhone(String phone,
-      {int subscringLength}) {
+  static CountryWithPhoneCode? getCountryDataByPhone(String phone,
+      {int? subscringLength}) {
     if (phone.isEmpty) return null;
     subscringLength = subscringLength ?? phone.length;
 
     if (subscringLength < 1) return null;
     var phoneCode = phone.substring(0, subscringLength);
 
-    var rawData = CountryManager().countries.firstWhere(
-        (data) => toNumericString(data.phoneCode.toString()) == phoneCode,
-        orElse: () => null);
+    var rawData = CountryManager().countries.firstWhereOrNull(
+        (data) => toNumericString(data.phoneCode.toString()) == phoneCode);
     if (rawData != null) {
       return rawData;
     }
@@ -185,7 +186,7 @@ class CountryWithPhoneCode {
 
   /// Get the phone mask based on number type and format
   getPhoneMask(
-      {@required PhoneNumberFormat format, @required PhoneNumberType type}) {
+      {required PhoneNumberFormat format, required PhoneNumberType type}) {
     if (format == PhoneNumberFormat.international &&
         type == PhoneNumberType.mobile) {
       return phoneMaskMobileInternational;
