@@ -68,7 +68,10 @@ class LibPhonenumberTextFormatter extends TextInputFormatter {
       TextEditingValue oldValue, TextEditingValue newValue) {
     var isErasing = newValue.text.length < oldValue.text.length;
     if (isErasing) {
-      if (newValue.text.isEmpty) {
+      if (!newValue.text.contains('+')) {
+        return oldValue;
+      }
+      if (newValue.text.length <= 1) {
         _clearCountry();
       }
 
@@ -80,6 +83,10 @@ class LibPhonenumberTextFormatter extends TextInputFormatter {
     }
     final onlyNumbers = toNumericString(newValue.text);
     String maskedValue = _applyMask(onlyNumbers);
+
+    if (!maskedValue.contains("+")) {
+      maskedValue = '+$maskedValue';
+    }
 
     /// Optionally pass the formatted value to the supplied callback
     if (onFormatFinished != null) {
@@ -107,7 +114,8 @@ class LibPhonenumberTextFormatter extends TextInputFormatter {
   String _applyMask(String numericString) {
     CountryWithPhoneCode? countryData;
 
-    if (overrideSkipCountryCode != null && overrideSkipCountryCode!.isNotEmpty) {
+    if (overrideSkipCountryCode != null &&
+        overrideSkipCountryCode!.isNotEmpty) {
       /// If the user specified the country code, we will use that one directly.
       countryData = CountryManager().countries.firstWhereOrNull(
           (element) => element.countryCode == overrideSkipCountryCode);
@@ -166,8 +174,8 @@ class LibPhonenumberTextFormatter extends TextInputFormatter {
         }
       }
       if (_countryData != null) {
-        var mask = _countryData!.getPhoneMask(
-            format: phoneNumberFormat, type: phoneNumberType);
+        var mask = _countryData!
+            .getPhoneMask(format: phoneNumberFormat, type: phoneNumberType);
 
         if (phoneNumberFormat == PhoneNumberFormat.national) {
           mask = '+${_countryData!.phoneCode} $mask';
